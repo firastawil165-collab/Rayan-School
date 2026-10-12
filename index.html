@@ -172,6 +172,11 @@
   #btnUpdate[disabled]{opacity:.7;}
   #updMsg{min-height:1.1em; font-size:.85rem; font-weight:700; color:#767C98; text-align:center;}
   @media (min-width:700px) and (min-height:600px){ #ver{font-size:.9rem;} #btnUpdate{font-size:1.05rem; min-height:50px;} }
+  /* shown only when Safari is zoomed in on a tablet */
+  #zoomNote{display:none; flex-basis:100%; margin:0 auto; max-width:30em; padding:10px 14px; border-radius:14px;
+    background:#FFFFFF; color:#2A2F4A; font-size:.85rem; font-weight:700; line-height:1.35; text-align:center;
+    box-shadow:0 3px 0 #DCCDB4;}
+  #zoomNote.show{display:block;}
 </style>
 </head>
 <body>
@@ -223,6 +228,7 @@
     <span id="ver"></span>
     <button id="btnUpdate" type="button">↻ Check for update</button>
     <span id="updMsg" role="status"></span>
+    <p id="zoomNote"></p>
   </div>
 </div>
 
@@ -284,7 +290,7 @@
      a fresh copy of this page (skipping every cache), compares versions, and
      reloads from a new address if they differ - a home-screen app on the iPad
      can otherwise keep showing an old copy. */
-  const APP_VERSION = '2026.10.12.1';
+  const APP_VERSION = '2026.10.12.2';
   const verEl = document.getElementById('ver');
   const btnUpd = document.getElementById('btnUpdate');
   const updMsg = document.getElementById('updMsg');
@@ -331,6 +337,47 @@
   setTimeout(quietCheck, 1500);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') quietCheck(); });
   document.addEventListener('gesturestart', e => e.preventDefault());
+
+  /* ===== the menu always fits the screen =====
+     If the cards would need scrolling (a short screen, or Safari page zoom),
+     shrink the whole menu just enough that everything fits. */
+  const zoomNote = document.getElementById('zoomNote');
+  function checkZoom(){
+    // a tablet whose page is much smaller than its screen in BOTH directions
+    // means Safari's page zoom is on (Split View / Slide Over keep full height)
+    const sMin = Math.min(screen.width, screen.height), sMax = Math.max(screen.width, screen.height);
+    const portrait = innerHeight >= innerWidth;
+    const rw = innerWidth / (portrait ? sMin : sMax);
+    const rh = innerHeight / (portrait ? sMax : sMin);
+    const zoomed = sMin >= 700 && rw < 0.8 && rh < 0.8;
+    if (zoomed){
+      const pct = Math.round(100 / rw / 5) * 5;
+      zoomNote.textContent = 'This page is zoomed in to about ' + pct + '%, so everything looks big. ' +
+        'To fix it: in Safari tap \u201CaA\u201D (left of the web address) and set it to 100%. ' +
+        'Or: Settings \u203A Apps \u203A Safari \u203A Page Zoom \u203A 100%.';
+    }
+    zoomNote.classList.toggle('show', zoomed);
+  }
+  let fitting = false;
+  function fitMenu(){
+    if (fitting || document.documentElement.classList.contains('appOpen')) return;
+    fitting = true;
+    checkZoom();
+    const root = document.documentElement;
+    let z = 1;
+    menu.style.zoom = '';
+    for (let i = 0; i < 30 && root.scrollHeight > innerHeight + 1 && z > 0.4; i++){
+      z = Math.max(0.4, z * Math.min(0.97, innerHeight / root.scrollHeight + 0.02));
+      menu.style.zoom = z.toFixed(3);
+    }
+    fitting = false;
+  }
+  fitMenu();
+  addEventListener('load', fitMenu);
+  addEventListener('resize', () => setTimeout(fitMenu, 60));
+  addEventListener('orientationchange', () => setTimeout(fitMenu, 250));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitMenu);
+  document.getElementById('btnHome').addEventListener('click', () => setTimeout(fitMenu, 30));
 </script>
 </body>
 </html>
